@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+  />
+  <title>Coast Drive</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(255,255,255,0.5), transparent 25%),
+        linear-gradient(180deg, #bdefff 0%, #fff3cf 100%);
+      color: #214660;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    :root {
+      --shell-radius: 28px;
+      --container-radius: 24px;
+      --glass: rgba(255,255,255,0.62);
+      --glass-border: rgba(255,255,255,0.9);
+      --text: #264a63;
+      --muted: rgba(38, 74, 99, 0.72);
+      --shadow: 0 18px 50px rgba(70, 120, 150, 0.16);
+      --ui-shadow: 0 10px 24px rgba(95, 140, 170, 0.12);
+    }
+
+    #app {
+      width: min(100vw, 720px);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    #game-shell {
+      position: relative;
+      width: 100%;
+      max-width: 640px;
+      aspect-ratio: 2 / 3;
+      max-height: calc(100vh - 32px);
+      padding: 14px;
+      border-radius: var(--shell-radius);
+      background: rgba(255,255,255,0.25);
+      border: 1px solid rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
+      box-shadow:
+        0 24px 70px rgba(60, 110, 140, 0.18),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: var(--container-radius);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.82);
+      box-shadow: var(--shadow);
+      background: #8fdfff;
+      isolation: isolate;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    #hud-top {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      min-width: 132px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--ui-shadow);
+      color: var(--text);
+    }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .hud-value {
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    #bottom-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      z-index: 5;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.92);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--ui-shadow);
+      color: #446c85;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #game-over {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.22);
+      backdrop-filter: blur(8px);
+    }
+
+    #game-over.active {
+      display: flex;
+    }
+
+    .game-over-card {
+      width: min(100%, 360px);
+      padding: 26px 22px;
+      border-radius: 26px;
+      text-align: center;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(255,255,255,0.95);
+      box-shadow: 0 18px 44px rgba(90, 130, 160, 0.16);
+      color: #2d5876;
+    }
+
+    .game-over-card h2 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      line-height: 1.1;
+    }
+
+    .game-over-card p {
+      margin: 0 0 18px;
+      color: rgba(45, 88, 118, 0.78);
+      font-size: 15px;
+    }
+
+    .score-big {
+      font-size: 44px;
+      font-weight: 900;
+      margin-bottom: 20px;
+      color: #234a67;
+    }
+
+    #restartBtn {
+      border: none;
+      cursor: pointer;
+      padding: 14px 20px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 900;
+      color: #18455f;
+      background: linear-gradient(135deg, #8fe8ff, #d7fbff);
+      box-shadow: 0 10px 22px rgba(94, 214, 255, 0.24);
+    }
+
+    #restartBtn:active {
+      transform: scale(0.98);
+    }
+
+    @media (max-width: 900px) {
+      #app {
+        width: 100vw;
+        padding: 10px;
+      }
+
+      #game-shell {
+        max-width: 100%;
+        max-height: calc(100vh - 20px);
+        padding: 10px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      :root {
+        --shell-radius: 22px;
+        --container-radius: 18px;
+      }
+
+      #app {
+        padding: 8px;
+      }
+
+      #game-shell {
+        aspect-ratio: auto;
+        width: 100%;
+        height: calc(100vh - 16px);
+        max-height: none;
+        padding: 8px;
+      }
+
+      #hud-top {
+        top: 12px;
+        left: 12px;
+        gap: 8px;
+      }
+
+      .hud-card {
+        min-width: 104px;
+        padding: 10px 12px;
+        border-radius: 16px;
+      }
+
+      .hud-label {
+        font-size: 10px;
+      }
+
+      .hud-value {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #app {
+        padding: 0;
+      }
+
+      #game-shell {
+        height: 100vh;
+        padding: 0;
+        border-radius: 0;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+
+      #game-container {
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+
+      #hud-top {
+        top: 10px;
+        left: 10px;
+      }
+
+      .hud-card {
+        min-width: 90px;
+        padding: 9px 10px;
+      }
+
+      .hud-value {
+        font-size: 19px;
+      }
+
+      .game-over-card {
+        padding: 22px 18px;
+        border-radius: 22px;
+      }
+
+      .game-over-card h2 {
+        font-size: 28px;
+      }
+
+      .score-big {
+        font-size: 38px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .hud-value {
+        font-size: 17px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      #app {
+        padding: 0;
+      }
+
+      #game-shell {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+
+      #game-container {
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+
+      #hud-top {
+        top: 8px;
+        left: 8px;
+      }
+
+      #bottom-hint {
+        display: none;
+      }
+    }
+
+    @supports (padding: max(0px)) {
+      #app {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+
+      @media (max-width: 480px) {
+        #app {
+          padding-left: env(safe-area-inset-left);
+          padding-right: env(safe-area-inset-right);
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="game-shell">
+      <div id="game-container">
+        <div id="hud-top">
+          <div class="hud-card">
+            <div class="hud-label">Time</div>
+            <div class="hud-value"><span id="timer">0.00</span>s</div>
+          </div>
+
+          <div class="hud-card">
+            <div class="hud-label">Speed</div>
+            <div class="hud-value"><span id="speed">0</span> km/h</div>
+          </div>
+        </div>
+
+        <div id="bottom-hint">Wischen zum Lenken · Tastatur: A / D oder ← / →</div>
+
+        <div id="game-over">
+          <div class="game-over-card">
+            <h2>Crash</h2>
+            <p id="game-over-text">Du bist in eine Barrikade gefahren.</p>
+            <div class="score-big"><span id="final-time">0.00</span>s</div>
+            <button id="restartBtn">Nochmal fahren</button>
+          </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const timerElement = document.getElementById("timer");
+    const speedElement = document.getElementById("speed");
+    const finalTimeElement = document.getElementById("final-time");
+    const gameOverScreen = document.getElementById("game-over");
+    const gameOverText = document.getElementById("game-over-text");
+    const restartBtn = document.getElementById("restartBtn");
+    const gameContainer = document.getElementById("game-container");
+
+    const carImg = new Image();
+    carImg.src = "mercedes.png";
+
+    const LOGICAL_WIDTH = 600;
+    const LOGICAL_HEIGHT = 900;
+
+    const ROAD_CENTER = 300;
+    const ROAD_TOP_LEFT = 270;
+    const ROAD_TOP_RIGHT = 330;
+    const ROAD_BOTTOM_LEFT = -120;
+    const ROAD_BOTTOM_RIGHT = 720;
+    const FOCAL_LENGTH = 800;
+
+    const ROAD_LEFT_BOUND = 60;
+    const ROAD_RIGHT_BOUND = 540;
+    const SLOT_CENTERS = [150, 225, 300, 375, 450];
+
+    const CAR = {
+      drawWidth: 164,
+      drawHeight: 214,
+      hitWidth: 82,
+      hitHeight: 132,
+      y: 745
+    };
+
+    const BARRICADE = {
+      width: 70,
+      height: 40,
+      collisionWidth: 58,
+      collisionHeight: 30,
+      fallHeight: 220
+    };
+
+    let dpr = 1;
+    let canvasWidth = LOGICAL_WIDTH;
+    let canvasHeight = LOGICAL_HEIGHT;
+    let HORIZON_Y = 320;
+
+    let keys = {};
+    let activePointerId = null;
+    let swipeStartCarX = ROAD_CENTER;
+    let swipeStartClientX = 0;
+
+    let animationId = null;
+    let gameActive = true;
+    let startTime = Date.now();
+
+    let carX = ROAD_CENTER;
+    let carVelocity = 0;
+    let carTilt = 0;
+
+    let obstacles = [];
+    let gameSpeed = 6.0;
+    let lastSpawnTime = 0;
+    let lastSpawnLane = 2;
+
+    function resizeCanvas() {
+      const rect = gameContainer.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      canvasWidth = rect.width;
+      canvasHeight = rect.height;
+      HORIZON_Y = canvasHeight * 0.355;
+    }
+
+    function getScaleX() {
+      return canvasWidth / LOGICAL_WIDTH;
+    }
+
+    function getScaleY() {
+      return canvasHeight / LOGICAL_HEIGHT;
+    }
+
+    function sx(x) {
+      return x * getScaleX();
+    }
+
+    function sy(y) {
+      return y * getScaleY();
+    }
+
+    function s(v) {
+      return v * ((getScaleX() + getScaleY()) / 2);
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function drawRoundRect(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+    }
+
+    function logicalHorizon() {
+      return HORIZON_Y / getScaleY();
+    }
+
+    function project3D(x, z) {
+      const p = z / FOCAL_LENGTH;
+      const horizonLogical = logicalHorizon();
+      const dx = (x - ROAD_CENTER) * p + ROAD_CENTER;
+      const dy = horizonLogical + p * ((canvasHeight / getScaleY()) - horizonLogical);
+      return { p, dx, dy };
+    }
+
+    function roadEdgesAtY(yLogical) {
+      const horizonLogical = logicalHorizon();
+      const t = clamp(
+        (yLogical - horizonLogical) / ((canvasHeight / getScaleY()) - horizonLogical),
+        0,
+        1
+      );
+
+      return {
+        left: lerp(ROAD_TOP_LEFT, ROAD_BOTTOM_LEFT, t),
+        right: lerp(ROAD_TOP_RIGHT, ROAD_BOTTOM_RIGHT, t)
+      };
+    }
+
+    function isCarInWater() {
+      const carBottomY = CAR.y + CAR.hitHeight / 2;
+      const edges = roadEdgesAtY(carBottomY);
+
+      const carLeft = carX - CAR.hitWidth / 2;
+      const carRight = carX + CAR.hitWidth / 2;
+
+      return carLeft < edges.left || carRight > edges.right;
+    }
+
+    function resetGame() {
+      gameActive = true;
+      startTime = Date.now();
+      carX = ROAD_CENTER;
+      carVelocity = 0;
+      carTilt = 0;
+      obstacles = [];
+      gameSpeed = 6.0;
+      lastSpawnTime = 0;
+      lastSpawnLane = 2;
+      activePointerId = null;
+      swipeStartCarX = ROAD_CENTER;
+      swipeStartClientX = 0;
+      gameOverText.textContent = "Du bist in eine Barrikade gefahren.";
+      gameOverScreen.classList.remove("active");
+
+      if (animationId) cancelAnimationFrame(animationId);
+      update();
+    }
+
+    function endGame(elapsed, reason = "barricade") {
+      gameActive = false;
+      activePointerId = null;
+      finalTimeElement.textContent = elapsed;
+      gameOverText.textContent =
+        reason === "water"
+          ? "Du bist ins Wasser gefahren."
+          : "Du bist in eine Barrikade gefahren.";
+      gameOverScreen.classList.add("active");
+    }
+
+    function chooseNextLane() {
+      const candidates = SLOT_CENTERS
+        .map((_, index) => index)
+        .filter(index => index !== lastSpawnLane);
+
+      const randomIndex = Math.floor(Math.random() * candidates.length);
+      return candidates[randomIndex];
+    }
+
+    function canSpawnNewObstacle(minDistanceZ) {
+      for (const obstacle of obstacles) {
+        if (obstacle.z < minDistanceZ) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function spawnManager() {
+      const now = Date.now();
+      const spawnDelay = Math.max(700, 1300 - (gameSpeed - 6) * 95);
+
+      if (now - lastSpawnTime < spawnDelay) return;
+      if (!canSpawnNewObstacle(180)) return;
+
+      const laneIndex = chooseNextLane();
+
+      obstacles.push({
+        laneIndex,
+        x: SLOT_CENTERS[laneIndex],
+        z: 0,
+        fallProgress: 0,
+        wobble: Math.random() * Math.PI * 2
+      });
+
+      lastSpawnLane = laneIndex;
+      lastSpawnTime = now;
+    }
+
+    function drawScene() {
+      const sky = ctx.createLinearGradient(0, 0, 0, HORIZON_Y);
+      sky.addColorStop(0, "#8fdfff");
+      sky.addColorStop(0.6, "#c9f2ff");
+      sky.addColorStop(1, "#fef8df");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvasWidth, HORIZON_Y);
+
+      const sea = ctx.createLinearGradient(0, HORIZON_Y, 0, canvasHeight);
+      sea.addColorStop(0, "#6de3f7");
+      sea.addColorStop(0.35, "#39cde8");
+      sea.addColorStop(1, "#149ac7");
+      ctx.fillStyle = sea;
+      ctx.fillRect(0, HORIZON_Y, canvasWidth, canvasHeight - HORIZON_Y);
+
+      for (let i = 0; i < 32; i++) {
+        const speedWave = 0.004 + Math.min(0.004, (gameSpeed - 6) * 0.00035);
+        const y = HORIZON_Y + i * s(18);
+        const alpha = Math.max(0.015, 0.11 - i * 0.0025);
+
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, y + Math.sin(Date.now() * speedWave + i * 0.7) * s(3));
+        ctx.lineTo(canvasWidth, y + Math.sin(Date.now() * speedWave + i * 0.7) * s(3));
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#f3ddb2";
+      ctx.fillRect(0, HORIZON_Y - s(8), canvasWidth, s(16));
+
+      const road = ctx.createLinearGradient(0, HORIZON_Y, 0, canvasHeight);
+      road.addColorStop(0, "#8f98a0");
+      road.addColorStop(0.45, "#69737c");
+      road.addColorStop(1, "#434b52");
+
+      ctx.fillStyle = road;
+      ctx.beginPath();
+      ctx.moveTo(sx(ROAD_TOP_LEFT), HORIZON_Y);
+      ctx.lineTo(sx(ROAD_TOP_RIGHT), HORIZON_Y);
+      ctx.lineTo(sx(ROAD_BOTTOM_RIGHT), canvasHeight);
+      ctx.lineTo(sx(ROAD_BOTTOM_LEFT), canvasHeight);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = s(3);
+      ctx.beginPath();
+      ctx.moveTo(sx(ROAD_TOP_LEFT), HORIZON_Y);
+      ctx.lineTo(sx(ROAD_BOTTOM_LEFT), canvasHeight);
+      ctx.moveTo(sx(ROAD_TOP_RIGHT), HORIZON_Y);
+      ctx.lineTo(sx(ROAD_BOTTOM_RIGHT), canvasHeight);
+      ctx.stroke();
+
+      ctx.setLineDash([s(22), s(18)]);
+      ctx.lineDashOffset = -(Date.now() * (0.035 + Math.min(0.03, (gameSpeed - 6) * 0.002)));
+
+      const laneMarks = [0.2, 0.4, 0.6, 0.8];
+      for (const t of laneMarks) {
+        const topX = lerp(ROAD_TOP_LEFT, ROAD_TOP_RIGHT, t);
+        const bottomX = lerp(ROAD_BOTTOM_LEFT, ROAD_BOTTOM_RIGHT, t);
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.lineWidth = s(2);
+        ctx.beginPath();
+        ctx.moveTo(sx(topX), HORIZON_Y);
+        ctx.lineTo(sx(bottomX), canvasHeight);
+        ctx.stroke();
+      }
+
+      ctx.setLineDash([]);
+
+      const vignette = ctx.createRadialGradient(
+        canvasWidth / 2, canvasHeight / 2, s(250),
+        canvasWidth / 2, canvasHeight / 2, s(620)
+      );
+      vignette.addColorStop(0, "rgba(0,0,0,0)");
+      vignette.addColorStop(1, "rgba(0,0,0,0.12)");
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
+
+    function drawBarricade(obstacle) {
+      const { p, dx, dy } = project3D(obstacle.x, obstacle.z);
+      if (p <= 0) return null;
+
+      obstacle.fallProgress = Math.min(1, obstacle.fallProgress + 0.06);
+      const fallT = easeOutCubic(obstacle.fallProgress);
+
+      const baseLift = (1 - fallT) * BARRICADE.fallHeight;
+      const bounce = obstacle.fallProgress < 1
+        ? Math.sin(obstacle.fallProgress * Math.PI * 2.6) * 6 * (1 - obstacle.fallProgress)
+        : 0;
+
+      const bx = sx(dx);
+      const by = sy(dy - baseLift + bounce);
+
+      const drawWidth = s(BARRICADE.width * p * 2.15);
+      const drawHeight = s(BARRICADE.height * p * 2.15);
+
+      ctx.fillStyle = `rgba(0,0,0,${0.08 + p * 0.16})`;
+      ctx.beginPath();
+      ctx.ellipse(
+        bx,
+        sy(dy + 10),
+        drawWidth * 0.56,
+        drawHeight * 0.24,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      const glow = ctx.createRadialGradient(bx, by, 2, bx, by, drawWidth * 0.9);
+      glow.addColorStop(0, "rgba(255,205,120,0.16)");
+      glow.addColorStop(1, "rgba(255,205,120,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(bx, by, drawWidth * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(bx, by);
+
+      const bodyGradient = ctx.createLinearGradient(0, -drawHeight / 2, 0, drawHeight / 2);
+      bodyGradient.addColorStop(0, "#ffe08d");
+      bodyGradient.addColorStop(0.45, "#ffb84d");
+      bodyGradient.addColorStop(1, "#ef8f2f");
+      ctx.fillStyle = bodyGradient;
+      drawRoundRect(
+        ctx,
+        -drawWidth / 2,
+        -drawHeight / 2,
+        drawWidth,
+        drawHeight,
+        drawHeight * 0.24
+      );
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.42)";
+      ctx.lineWidth = Math.max(1, drawHeight * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(-drawWidth * 0.42, -drawHeight * 0.28);
+      ctx.lineTo(drawWidth * 0.42, -drawHeight * 0.28);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.96)";
+      const stripeH = drawHeight * 0.16;
+      drawRoundRect(
+        ctx,
+        -drawWidth * 0.43,
+        -drawHeight * 0.22,
+        drawWidth * 0.86,
+        stripeH,
+        stripeH * 0.45
+      );
+      ctx.fill();
+
+      drawRoundRect(
+        ctx,
+        -drawWidth * 0.43,
+        drawHeight * 0.06,
+        drawWidth * 0.86,
+        stripeH,
+        stripeH * 0.45
+      );
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = Math.max(1, drawHeight * 0.045);
+      ctx.beginPath();
+      ctx.moveTo(-drawWidth * 0.28, -drawHeight * 0.18);
+      ctx.lineTo(-drawWidth * 0.12, drawHeight * 0.16);
+      ctx.moveTo(drawWidth * 0.04, -drawHeight * 0.18);
+      ctx.lineTo(drawWidth * 0.2, drawHeight * 0.16);
+      ctx.stroke();
+
+      const legWidth = drawWidth * 0.085;
+      const legHeight = drawHeight * 0.42;
+      const legGradient = ctx.createLinearGradient(0, 0, 0, legHeight);
+      legGradient.addColorStop(0, "#7d8791");
+      legGradient.addColorStop(1, "#58626c");
+      ctx.fillStyle = legGradient;
+
+      drawRoundRect(
+        ctx,
+        -drawWidth * 0.34,
+        drawHeight * 0.18,
+        legWidth,
+        legHeight,
+        legWidth * 0.35
+      );
+      ctx.fill();
+
+      drawRoundRect(
+        ctx,
+        drawWidth * 0.255,
+        drawHeight * 0.18,
+        legWidth,
+        legHeight,
+        legWidth * 0.35
+      );
+      ctx.fill();
+
+      ctx.restore();
+
+      return {
+        x: dx,
+        y: dy,
+        width: BARRICADE.collisionWidth * p * 2.15,
+        height: BARRICADE.collisionHeight * p * 2.15
+      };
+    }
+
+    function drawSpeedLines() {
+      const intensity = Math.min(1, (gameSpeed - 6) / 5);
+      const lineCount = 14;
+
+      for (let i = 0; i < lineCount; i++) {
+        const speedOffset = Date.now() * (0.35 + intensity * 0.35);
+        const x = ((i * s(47)) + speedOffset) % canvasWidth;
+        const y = sy(470) + i * s(28);
+        const len = s(18 + intensity * 38);
+
+        ctx.strokeStyle = `rgba(255,255,255,${0.035 + intensity * 0.09})`;
+        ctx.lineWidth = s(2.4);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + len);
+        ctx.stroke();
+      }
+    }
+
+    function drawCar() {
+      const carY = sy(CAR.y);
+
+      ctx.save();
+      ctx.translate(sx(carX), carY);
+      ctx.rotate(carTilt);
+
+      const shadow = ctx.createRadialGradient(0, s(32), s(14), 0, s(32), s(100));
+      shadow.addColorStop(0, "rgba(0,0,0,0.24)");
+      shadow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = shadow;
+      ctx.beginPath();
+      ctx.ellipse(0, s(34), s(92), s(34), 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (carImg.complete && carImg.naturalWidth > 0) {
+        ctx.drawImage(
+          carImg,
+          -s(CAR.drawWidth / 2),
+          -s(CAR.drawHeight / 2),
+          s(CAR.drawWidth),
+          s(CAR.drawHeight)
+        );
+      } else {
+        const carGradient = ctx.createLinearGradient(0, -s(95), 0, s(95));
+        carGradient.addColorStop(0, "#20252b");
+        carGradient.addColorStop(1, "#575f66");
+        ctx.fillStyle = carGradient;
+
+        drawRoundRect(
+          ctx,
+          -s(CAR.drawWidth / 2 - 8),
+          -s(CAR.drawHeight / 2 - 8),
+          s(CAR.drawWidth - 16),
+          s(CAR.drawHeight - 16),
+          s(26)
+        );
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.fillRect(-s(38), -s(58), s(76), s(38));
+      }
+
+      ctx.restore();
+    }
+
+    function checkCollision(obstacleData) {
+      const carLeft = carX - CAR.hitWidth / 2;
+      const carRight = carX + CAR.hitWidth / 2;
+      const carTop = CAR.y - CAR.hitHeight / 2;
+      const carBottom = CAR.y + CAR.hitHeight / 2;
+
+      const obsLeft = obstacleData.x - obstacleData.width / 2;
+      const obsRight = obstacleData.x + obstacleData.width / 2;
+      const obsTop = obstacleData.y - obstacleData.height / 2;
+      const obsBottom = obstacleData.y + obstacleData.height / 2;
+
+      return !(
+        carRight < obsLeft ||
+        carLeft > obsRight ||
+        carBottom < obsTop ||
+        carTop > obsBottom
+      );
+    }
+
+    function updateSwipe(clientX) {
+      const rect = gameContainer.getBoundingClientRect();
+      const deltaPx = clientX - swipeStartClientX;
+      const logicalDelta = deltaPx * (LOGICAL_WIDTH / rect.width);
+
+      const previousCarX = carX;
+      carX = clamp(swipeStartCarX + logicalDelta, ROAD_LEFT_BOUND, ROAD_RIGHT_BOUND);
+      carVelocity = (carX - previousCarX) * 0.55;
+    }
+
+    function update() {
+      if (!gameActive) return;
+
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      timerElement.textContent = elapsed;
+      speedElement.textContent = Math.round(gameSpeed * 32);
+
+      const moveLeft = keys["ArrowLeft"] || keys["a"] || keys["A"];
+      const moveRight = keys["ArrowRight"] || keys["d"] || keys["D"];
+
+      if (activePointerId === null) {
+        if (moveLeft) carVelocity -= 1.18;
+        if (moveRight) carVelocity += 1.18;
+
+        carVelocity *= 0.90;
+        carX += carVelocity;
+      } else {
+        carVelocity *= 0.82;
+      }
+
+      carX = clamp(carX, ROAD_LEFT_BOUND, ROAD_RIGHT_BOUND);
+      carTilt += (carVelocity * 0.012 - carTilt) * 0.14;
+
+      if (isCarInWater()) {
+        endGame(elapsed, "water");
+        return;
+      }
+
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      drawScene();
+      spawnManager();
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obstacle = obstacles[i];
+        obstacle.z += gameSpeed * 1.18;
+
+        const data = drawBarricade(obstacle);
+
+        if (data && data.y > 580 && checkCollision(data)) {
+          endGame(elapsed, "barricade");
+          return;
+        }
+
+        if (obstacle.z > FOCAL_LENGTH + 180) {
+          obstacles.splice(i, 1);
+        }
+      }
+
+      drawSpeedLines();
+      drawCar();
+
+      gameSpeed += 0.00135;
+      animationId = requestAnimationFrame(update);
+    }
+
+    gameContainer.addEventListener("pointerdown", (e) => {
+      if (!gameActive) return;
+      activePointerId = e.pointerId;
+      swipeStartClientX = e.clientX;
+      swipeStartCarX = carX;
+      gameContainer.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    });
+
+    gameContainer.addEventListener("pointermove", (e) => {
+      if (e.pointerId !== activePointerId) return;
+      updateSwipe(e.clientX);
+      e.preventDefault();
+    });
+
+    gameContainer.addEventListener("pointerup", (e) => {
+      if (e.pointerId !== activePointerId) return;
+      activePointerId = null;
+      e.preventDefault();
+    });
+
+    gameContainer.addEventListener("pointercancel", (e) => {
+      if (e.pointerId !== activePointerId) return;
+      activePointerId = null;
+      e.preventDefault();
+    });
+
+    gameContainer.addEventListener("pointerleave", (e) => {
+      if (e.pointerId !== activePointerId) return;
+      activePointerId = null;
+      e.preventDefault();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    window.addEventListener("blur", () => {
+      keys = {};
+      activePointerId = null;
+    });
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(resizeCanvas, 120);
+    });
+
+    restartBtn.addEventListener("click", resetGame);
+
+    resizeCanvas();
+    update();
+  </script>
+</body>
+</html>
